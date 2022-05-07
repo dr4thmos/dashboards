@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from bokeh.plotting import figure
 
 st.title('Uber pickups in NYC')
 
@@ -35,16 +34,3 @@ filtered_data = data[data[DATE_COLUMN].dt.hour == hour_to_filter]
 
 st.subheader('Map of all pickups at %s:00' % hour_to_filter)
 st.map(filtered_data)
-
-
-x = [1, 2, 3, 4, 5]
-y = [6, 7, 2, 4, 5]
-
-p = figure(
-     title='simple line example',
-     x_axis_label='x',
-     y_axis_label='y')
-
-p.line(x, y, legend_label='Trend', line_width=2)
-
-st.bokeh_chart(p, use_container_width=True)
