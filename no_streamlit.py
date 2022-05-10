@@ -88,6 +88,7 @@ df_embedding.head()
 
 output_file('plot.html')
 curdoc().theme = 'dark_minimal'
+
 datasource =  ColumnDataSource(data=dict(index=df_embedding.index,
                                          x=df_embedding.x,
                                          y=df_embedding.y,

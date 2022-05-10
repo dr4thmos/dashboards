@@ -5,3 +5,4 @@ streamlit
 umap-learn
 pacmap
 hdbscan
+requests

@@ -17,8 +17,6 @@ from sklearn.cluster import KMeans, DBSCAN
 
 import streamlit as st
 
-
-
 st.title('Snub Nose Remenants analyzer')
 
 @st.cache
