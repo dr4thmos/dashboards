@@ -6,6 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 
+import pacmap
 import umap
 import hdbscan
 from sklearn.cluster import KMeans, DBSCAN
@@ -67,7 +68,7 @@ with visualization_column:
             st.write('Pre-Reduction')
             visualization_prereduction_method = st.selectbox(
                 'Reduction type',
-                ('UMAP', 'PACMAP'),
+                ('UMAP', ''),
                 key="prereduction method",
                 disabled=not(visualization_prereduction_check)
             )
@@ -95,18 +96,22 @@ with visualization_column:
             key="reduction method"
         )
 
-        vis_reduction_components = st.number_input('Output dimensions', key="vis_reduction_components", min_value = 2, max_value = 3)
+        vis_reduction_components = st.number_input('Output dimensions', key="vis_reduction_components", min_value = 2, max_value = 2)
 
         with st.container():
             if visualization_reduction_method == "UMAP":
                 #vis_reduction_n_neighbors = st.number_input('Number of neighbors', key="vis_reduction_n_neighbors", step = 5, min_value = 5, max_value = 100)
-                vis_reduction_n_neighbors = st.slider('Number of neighbors', key="vis_reduction_n_neighbors", min_value = 5, max_value = 100, step = 5, value = 15)
+                vis_reduction_UMAP_n_neighbors = st.slider('Number of neighbors', key="vis_reduction_UMAP_n_neighbors", min_value = 5, max_value = 100, step = 5, value = 15)
                 #vis_reduction_min_distance = st.number_input('Minimum distance between points', key="vis_reduction_min_distance", step = 0.1, min_value = 0.0, max_value = 1.0)
-                vis_reduction_min_distance = st.slider('Minimum distance between points', key="vis_reduction_min_distance", step = 0.05, min_value = 0.0, max_value = 1.0, value = 0.1)
+                vis_reduction_UMAP_min_distance = st.slider('Minimum distance between points', key="vis_reduction_UMAP_min_distance", step = 0.05, min_value = 0.0, max_value = 1.0, value = 0.1)
                 
 
             elif visualization_reduction_method == "PACMAP":
                 st.write('No parameter for PACMAP for now')
+                vis_reduction_PACMAP_n_neighbors = st.slider('Number of neighbors', key="vis_reduction_PACMAP_n_neighbors", min_value = 5, max_value = 100, step = 5, value = 15)
+                vis_reduction_PACMAP_MN_ratio = st.slider('Attraction between near points', key="vis_reduction_PACMAP_MN_ratio", step = 0.1, min_value = 0.1, max_value = 2.0, value = 0.5)
+                vis_reduction_PACMAP_FP_ratio = st.slider('Repulsion between distance points', key="vis_reduction_PACMAP_FP_ratio", step = 0.5, min_value = 0.5, max_value = 5.0, value = 2.0)
+                
 
 
 with clustering_column:
@@ -121,7 +126,7 @@ with clustering_column:
             st.write('Clustering Pre-Reduction')
             clustering_prereduction_method = st.selectbox(
                 'Reduction type',
-                ('UMAP', 'PACMAP'),
+                ('UMAP', ''),
                 key="clustering_prereduction_method"
             )
 
@@ -237,11 +242,19 @@ if a:
     
     
     st.write('Reduction: ', visualization_reduction_method)
-    reducer = umap.UMAP(n_neighbors=vis_reduction_n_neighbors, min_dist=vis_reduction_min_distance, n_components=vis_reduction_components)
+    if visualization_reduction_method == "UMAP":
+        reducer = umap.UMAP(n_neighbors=vis_reduction_UMAP_n_neighbors, min_dist=vis_reduction_UMAP_min_distance, n_components=vis_reduction_components)
+    elif visualization_reduction_method == "PACMAP":
+        reducer = pacmap.PaCMAP(n_components=vis_reduction_components, n_neighbors=vis_reduction_PACMAP_n_neighbors, MN_ratio=vis_reduction_PACMAP_MN_ratio, FP_ratio=vis_reduction_PACMAP_FP_ratio)
+        #umap.PACMAP(n_neighbors=vis_reduction_n_neighbors, min_dist=vis_reduction_min_distance, n_components=vis_reduction_components)
     embedding = reducer.fit_transform(viz_data)
 
     df_embedding = pd.DataFrame(embedding)
-    df_embedding = df_embedding.rename(columns={0:"x", 1:"y"})
+    
+    if vis_reduction_components == 2:
+        df_embedding = df_embedding.rename(columns={0:"x", 1:"y"})
+    if vis_reduction_components == 3:
+        df_embedding = df_embedding.rename(columns={0:"x", 1:"y", 2:"z"})
 
     # Clustering
     if clustering_prereduction_check:
@@ -278,8 +291,9 @@ if a:
                                             gen_path=df_embedding.gen_path,
                                             color=color))
 
+
     plot_figure = figure(plot_width=800, plot_height=800, tools=('pan, wheel_zoom, reset, save'))
-    color_mapping = CategoricalColorMapper(factors=[(x) for x in 'clusters'], palette=Category20[3])
+    #color_mapping = CategoricalColorMapper(factors=[(x) for x in 'clusters'], palette=Category20[3])
 
     plot_figure.add_tools(HoverTool(tooltips="""
     <div style='text-align:center; border: 2px solid; border-radius: 2px'>
@@ -313,3 +327,14 @@ if a:
     #show(plot_figure)
 
     st.bokeh_chart(plot_figure, use_container_width=True)
+
+
+    from PIL import Image
+    
+    for cluster, col in zip(np.unique(clusters), st.columns(np.unique(clusters).size)):
+        with col:
+            st.title('#' + str(cluster))
+            for _, row in df_embedding.iterrows():
+                if row.clusters == cluster:
+                    image = Image.open(os.path.join(EXPERIMENT_FOLDER, row.image_path))
+                    st.image(image, caption=row.image)
