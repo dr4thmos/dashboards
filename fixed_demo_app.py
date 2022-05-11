@@ -22,34 +22,117 @@ from bokeh.resources import settings
 import pathlib 
 import shutil
 
-EXPERIMENT_FOLDER = "20220503-094002-wide-ld64-15k"
+DATA_FOLDER = "data"
+
 EMBEDDINGS_FILE = "embeddings.json"
+METADATA_FILE = "metadata.json"
 LABELS_FILE = "labels.json"
 IMAGES_FOLDER = "images"
 GENERATED_FOLDER = "generated"
 
-# HACK This only works when we've installed streamlit with pipenv, so the
-# permissions during install are the same as the running process
+
 
 STREAMLIT_STATIC_PATH = pathlib.Path(st.__path__[0]) / 'static'
 print(STREAMLIT_STATIC_PATH)
 # We create a videos directory within the streamlit static asset directory
 # and we write output files to it
-STATIC_IMAGES_PATH = (os.path.join(STREAMLIT_STATIC_PATH, IMAGES_FOLDER))
-if not os.path.isdir(STATIC_IMAGES_PATH):
-    os.mkdir(STATIC_IMAGES_PATH)
 
-for image in os.listdir(os.path.join(EXPERIMENT_FOLDER, IMAGES_FOLDER)):
-    shutil.copy(os.path.join(EXPERIMENT_FOLDER, IMAGES_FOLDER, image), STATIC_IMAGES_PATH)  # For newer Python.
+for experiment in os.listdir(DATA_FOLDER):
+    STATIC_IMAGES_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, IMAGES_FOLDER))
+    if not os.path.isdir(os.path.join(STREAMLIT_STATIC_PATH, experiment)):
+        os.mkdir(os.path.join(STREAMLIT_STATIC_PATH, experiment))
+    
+    if not os.path.isdir(STATIC_IMAGES_PATH):
+        os.mkdir(STATIC_IMAGES_PATH)
 
-STATIC_GENERATED_PATH = (os.path.join(STREAMLIT_STATIC_PATH, GENERATED_FOLDER))
-if not os.path.isdir(STATIC_GENERATED_PATH):
-    os.mkdir(STATIC_GENERATED_PATH)
+    for image in os.listdir(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER)):
+        shutil.copy(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER, image), STATIC_IMAGES_PATH)  # For newer Python.
 
-for image in os.listdir(os.path.join(EXPERIMENT_FOLDER, GENERATED_FOLDER)):
-    shutil.copy(os.path.join(EXPERIMENT_FOLDER, GENERATED_FOLDER, image), STATIC_GENERATED_PATH)  # For newer Python.
+    STATIC_GENERATED_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, GENERATED_FOLDER))
+
+    if not os.path.isdir(STATIC_GENERATED_PATH):
+        os.mkdir(STATIC_GENERATED_PATH)
+
+    for image in os.listdir(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER)):
+        shutil.copy(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER, image), STATIC_GENERATED_PATH)  # For newer Python.
 
 st.set_page_config(layout="wide")
+
+experiments = {}
+for experiment in os.listdir(DATA_FOLDER):
+    print(experiment)
+    if os.path.isdir(os.path.join(DATA_FOLDER, experiment)):
+        # Better in a dictionary with metadata
+        with open(os.path.join(DATA_FOLDER, experiment, METADATA_FILE), "r") as file:
+            metadata = json.load(file)
+            experiments[experiment] = metadata
+            experiments[experiment]["path"] = os.path.join(DATA_FOLDER, experiment, METADATA_FILE)
+
+current_experiment = st.selectbox(
+            'Choose data',
+            tuple(experiments),
+            key="experiment"
+        )
+
+EXPERIMENT_FOLDER = os.path.join(DATA_FOLDER, current_experiment)
+
+columns = st.columns(9)
+
+with columns[0]:
+    st.write("**Name**")
+    st.write(str(experiments[current_experiment]["name"]))
+with columns[1]:
+    st.write("**Image Size**")
+    st.write("{} x {}".format(str(experiments[current_experiment]["image"]["dim"]),str(experiments[current_experiment]["image"]["dim"])))
+with columns[2]:
+    st.write("**Channels #**")
+    for channel in experiments[current_experiment]["image"]["channels"]["map"]:
+        st.write("{}".format(channel))
+with columns[3]:
+    st.write("**Image Preview**")
+    for channel in experiments[current_experiment]["image"]["channels"]["preview"]:
+        st.write("{}: {}".format(channel, experiments[current_experiment]["image"]["channels"]["preview"][channel]))
+with columns[4]:
+    st.write("**Model architecture**")
+    st.write("{}".format(str(experiments[current_experiment]["architecture"]["name"])))
+with columns[5]:
+    st.write("**Layers #**")
+    for idx, filter in enumerate(experiments[current_experiment]["architecture"]["filters"]):
+        st.write("{}".format(experiments[current_experiment]["architecture"]["filters"][idx]))
+with columns[6]:
+    st.write("**Latent Dimension**")
+    st.write("{}".format(experiments[current_experiment]["architecture"]["latent_dim"]))
+with columns[7]:
+    st.write("**Epochs**")
+    st.write("{}".format(experiments[current_experiment]["training"]["epochs"]))
+with columns[8]:
+    st.write("**Batch size**")
+    st.write("{}".format(experiments[current_experiment]["training"]["batch_size"]))
+
+
+
+#for key, col in zip(experiments[current_experiment], st.columns(9)):
+    
+#for key in experiments[current_experiment]:
+
+
+
+
+#TRAIN_PATH = os.path.join(EXPERIMENT_FOLDER, EMBEDDINGS_FILE)
+#LABELS_PATH = os.path.join(EXPERIMENT_FOLDER, LABELS_FILE)
+#IMAGE_PATH = os.path.join(EXPERIMENT_FOLDER, IMAGES_FOLDER)
+#GEN_PATH = os.path.join(EXPERIMENT_FOLDER, GENERATED_FOLDER)
+
+### Comment this in development
+
+# HACK This only works when we've installed streamlit with pipenv, so the
+# permissions during install are the same as the running process
+
+
+
+
+
+
 
 visualization_column, clustering_column = st.columns(2)
 
@@ -186,11 +269,11 @@ def load_data(data_path):
         #print(data[0])
     return data
 
-EXPERIMENT_FOLDER = "20220503-094002-wide-ld64-15k"
-EMBEDDINGS_FILE = "embeddings.json"
-LABELS_FILE = "labels.json"
-IMAGES_FOLDER = "images"
-GENERATED_FOLDER = "generated"
+#EXPERIMENT_FOLDER = "20220503-094002-wide-ld64-15k"
+#EMBEDDINGS_FILE = "embeddings.json"
+#LABELS_FILE = "labels.json"
+#IMAGES_FOLDER = "images"
+#GENERATED_FOLDER = "generated"
 
 TRAIN_PATH = os.path.join(EXPERIMENT_FOLDER, EMBEDDINGS_FILE)
 LABELS_PATH = os.path.join(EXPERIMENT_FOLDER, LABELS_FILE)
@@ -207,7 +290,7 @@ labels = labels.flatten()
 df_image_paths = pd.DataFrame(
     {
         'image_path' : map(
-            lambda image: os.path.join(IMAGES_FOLDER,image), 
+            lambda image: os.path.join(current_experiment, IMAGES_FOLDER,image), 
             images
             )
     })
@@ -221,7 +304,7 @@ print(df_images_filename.head())
 df_gen_paths = pd.DataFrame(
     {
         'gen_path' : map(
-            lambda image: os.path.join(GENERATED_FOLDER,image), 
+            lambda image: os.path.join(current_experiment, GENERATED_FOLDER,image), 
             images
             )
     })
@@ -331,10 +414,13 @@ if a:
 
     from PIL import Image
     
+    #a = st.button("Compute", key="Compute", help="Compute all the pipeline and visualize")
+
     for cluster, col in zip(np.unique(clusters), st.columns(np.unique(clusters).size)):
         with col:
             st.title('#' + str(cluster))
             for _, row in df_embedding.iterrows():
                 if row.clusters == cluster:
-                    image = Image.open(os.path.join(EXPERIMENT_FOLDER, row.image_path))
+                    
+                    image = Image.open(os.path.join(DATA_FOLDER, row.gen_path))
                     st.image(image, caption=row.image)
