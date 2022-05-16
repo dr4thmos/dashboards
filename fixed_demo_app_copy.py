@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import math
 
 import pacmap
 import umap
@@ -32,33 +33,34 @@ LABELS_FILE = "labels.json"
 IMAGES_FOLDER = "images"
 GENERATED_FOLDER = "generated"
 
+DEV = True
 
+if not(DEV):
+    STREAMLIT_STATIC_PATH = pathlib.Path(st.__path__[0]) / 'static'
+    print(STREAMLIT_STATIC_PATH)
+    # We create a videos directory within the streamlit static asset directory
+    # and we write output files to it
 
-STREAMLIT_STATIC_PATH = pathlib.Path(st.__path__[0]) / 'static'
-print(STREAMLIT_STATIC_PATH)
-# We create a videos directory within the streamlit static asset directory
-# and we write output files to it
+    for experiment in os.listdir(DATA_FOLDER):
+        STATIC_IMAGES_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, IMAGES_FOLDER))
+        if not os.path.isdir(os.path.join(STREAMLIT_STATIC_PATH, experiment)):
+            os.mkdir(os.path.join(STREAMLIT_STATIC_PATH, experiment))
+        
+        if not os.path.isdir(STATIC_IMAGES_PATH):
+            os.mkdir(STATIC_IMAGES_PATH)
 
-for experiment in os.listdir(DATA_FOLDER):
-    STATIC_IMAGES_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, IMAGES_FOLDER))
-    if not os.path.isdir(os.path.join(STREAMLIT_STATIC_PATH, experiment)):
-        os.mkdir(os.path.join(STREAMLIT_STATIC_PATH, experiment))
-    
-    if not os.path.isdir(STATIC_IMAGES_PATH):
-        os.mkdir(STATIC_IMAGES_PATH)
+        for image in os.listdir(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER)):
+            shutil.copy(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER, image), STATIC_IMAGES_PATH)  # For newer Python.
+            pass
 
-    for image in os.listdir(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER)):
-        shutil.copy(os.path.join(DATA_FOLDER, experiment, IMAGES_FOLDER, image), STATIC_IMAGES_PATH)  # For newer Python.
-        pass
+        STATIC_GENERATED_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, GENERATED_FOLDER))
 
-    STATIC_GENERATED_PATH = (os.path.join(STREAMLIT_STATIC_PATH, experiment, GENERATED_FOLDER))
+        if not os.path.isdir(STATIC_GENERATED_PATH):
+            os.mkdir(STATIC_GENERATED_PATH)
 
-    if not os.path.isdir(STATIC_GENERATED_PATH):
-        os.mkdir(STATIC_GENERATED_PATH)
-
-    for image in os.listdir(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER)):
-        shutil.copy(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER, image), STATIC_GENERATED_PATH)  # For newer Python.
-        pass
+        for image in os.listdir(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER)):
+            shutil.copy(os.path.join(DATA_FOLDER, experiment, GENERATED_FOLDER, image), STATIC_GENERATED_PATH)  # For newer Python.
+            pass
 
 st.set_page_config(layout="wide")
 
@@ -276,6 +278,17 @@ with clustering_column:
 """
 ---
 """
+
+st.header('Grid Comparison')
+visualization_prereduction_method = st.selectbox(
+'Reduction type',
+('UMAP', ''),
+key="grid comparison method",
+)
+
+grid_neighbor = st.slider('Select a range of neighbors', 5, 100, (25, 50), key="grid_neighbors_range", step=5)
+grid_dist = st.slider('Select a range of distance', 0.0, 0.9, (0.3, 0.6), key="grid_dist_range", step=0.1)
+
 a = st.button("Compute", key="Compute", help="Compute all the pipeline and visualize")
 
 @st.cache
@@ -439,6 +452,19 @@ if a:
 
     st.bokeh_chart(plot_figure, use_container_width=True)
 
+    st.write('neighbors: '  , min(grid_neighbor), '  ', max(grid_neighbor),  'distances: ', min(grid_dist), '  ', max(grid_dist))
+    grid_neighbor_range=[min(grid_neighbor), math.floor((min(grid_neighbor)+max(grid_neighbor))/2), max(grid_neighbor)]
+    grid_dist_range=[min(grid_dist), round((min(grid_dist)+max(grid_dist))/2, 2), max(grid_dist)]
+    fig, axs = plt.subplots(nrows=len(grid_neighbor_range), ncols=len(grid_dist_range), figsize=(20,20), constrained_layout=True)
+    for nrow, n in enumerate(grid_neighbor_range):
+        for ncol, d in enumerate(grid_dist_range):
+            embedding=umap.UMAP(n_components=2, n_neighbors=n, min_dist=d, random_state=42)
+            reducer=embedding.fit_transform(viz_data)
+            axs[nrow, ncol].scatter(reducer[:,0], reducer[:,1], c=df_embedding['clusters'], s=8, cmap='Spectral')
+            axs[nrow, ncol].set_title('n_neighbors={} '.format(n) + 'min_dist={}'.format(d), fontsize=12)
+
+    st.pyplot(fig)
+
 
     from PIL import Image
     
@@ -452,30 +478,3 @@ if a:
                     
                     image = Image.open(os.path.join(DATA_FOLDER, row.gen_path))
                     st.image(image, caption=row.image)
-
-grid_visualization_check = st.checkbox("Execute Grid Visualization", value=False, key="grid visualization", help=None, on_change=None)
-
-if grid_visualization_check:
-
-    st.write('Grid Comparison')
-    visualization_prereduction_method = st.selectbox(
-    'Reduction type',
-    ('UMAP', ''),
-    key="grid comparison method",
-    )
-
-    grid_neighbor = st.slider('Select a range of neighbors', 5, 80, (25, 50), key="grid_neighbors_range", step=5)
-    grid_dist = st.slider('Select a range of distance', 0.0, 0.9, (0.3, 0.6), key="grid_dist_range", step=0.1)
-
-    b = st.button("Compute", key="Compute")
-
-    if b:
-        st.write('neighbors: '  , min(grid_neighbor), '  ', max(grid_neighbor),  'distances: ', min(grid_dist), '  ', max(grid_dist))
-        grid_neighbor_range=range(min(grid_neighbor), max(grid_neighbor), step=5)
-        grid_dist_range=range(min(grid_dist), max(grid_dist), step=0.1)
-        fig, axs = plt.subplots(nrows=len(grid_neighbor_range), ncols=len(grid_dist_range), figsize=(20,20), constrained_layout=True)
-        for nrow, n in enumerate(grid_neighbor_range):
-            for ncol, d in enumerate(grid_dist_range):
-                embedding=umap.UMAP(viz_data, n_components=2, n_neighbors=n, min_dist=d, random_state=42)
-                axs[nrow, ncol].scatter(embedding[:,0], embedding[:,1], c=clus_data[0], s=4, cmap='Spectral')
-                axs[nrow, ncol].set_title('n_neighbors={} '.format(n) + 'min_dist={}'.format(d), fontsize=12)

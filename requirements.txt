@@ -6,3 +6,4 @@ umap-learn
 pacmap
 hdbscan
 requests
+matplotlib
