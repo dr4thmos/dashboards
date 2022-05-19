@@ -24,6 +24,7 @@ from bokeh.resources import settings
 
 import pathlib 
 import shutil
+from PIL import Image
 
 DATA_FOLDER = "data"
 
@@ -398,6 +399,10 @@ if a:
     df_embedding = df_embedding.join(df_gen_paths)
     #df_embedding = df_embedding.join(df_image_paths)
 
+    csv = df_embedding.drop(['image_path', 'gen_path'], axis=1)
+    csv = csv.to_csv().encode('utf-8')
+    st.download_button(label="Download clusters data as CSV", data=csv, file_name='Data_clusters.csv', mime='text/csv')
+
     output_file('plot.html')
     curdoc().theme = 'dark_minimal'
 
@@ -455,18 +460,23 @@ if a:
     st.write('neighbors: '  , min(grid_neighbor), '  ', max(grid_neighbor),  'distances: ', min(grid_dist), '  ', max(grid_dist))
     grid_neighbor_range=[min(grid_neighbor), math.floor((min(grid_neighbor)+max(grid_neighbor))/2), max(grid_neighbor)]
     grid_dist_range=[min(grid_dist), round((min(grid_dist)+max(grid_dist))/2, 2), max(grid_dist)]
-    fig, axs = plt.subplots(nrows=len(grid_neighbor_range), ncols=len(grid_dist_range), figsize=(20,20), constrained_layout=True)
+    fig, axs = plt.subplots(nrows=len(grid_neighbor_range), ncols=len(grid_dist_range), figsize=(10, 10), constrained_layout=True)
+    fig.text(0.5, -0.03, 'Minimum Distance', ha='center', fontsize='medium')
+    fig.text(-0.03, 0.5, 'Number of Neighbors', va='center', rotation='vertical', fontsize='medium')
+    fig.text(0.5, 1.03, 'Minimum Distance', ha='center', fontsize='medium')
+    fig.text(1.03, 0.5, 'Number of Neighbors', va='center', rotation='vertical', fontsize='medium')
     for nrow, n in enumerate(grid_neighbor_range):
         for ncol, d in enumerate(grid_dist_range):
             embedding=umap.UMAP(n_components=2, n_neighbors=n, min_dist=d, random_state=42)
             reducer=embedding.fit_transform(viz_data)
-            axs[nrow, ncol].scatter(reducer[:,0], reducer[:,1], c=df_embedding['clusters'], s=8, cmap='Spectral')
-            axs[nrow, ncol].set_title('n_neighbors={} '.format(n) + 'min_dist={}'.format(d), fontsize=12)
-
+            axs[nrow, ncol].scatter(reducer[:,0], reducer[:,1], c=df_embedding['clusters'], s=10, cmap='Spectral')
+            axs[nrow, ncol].set_yticklabels([])
+            axs[nrow, ncol].set_xticklabels([])
+            axs[nrow, ncol].set_title('n_neighbors={} '.format(n) + 'min_dist={}'.format(d), fontsize=8)
     st.pyplot(fig)
 
 
-    from PIL import Image
+
     
     #a = st.button("Compute", key="Compute", help="Compute all the pipeline and visualize")
 
