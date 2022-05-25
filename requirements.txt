@@ -7,3 +7,4 @@ pacmap
 hdbscan
 requests
 matplotlib
+plotly
