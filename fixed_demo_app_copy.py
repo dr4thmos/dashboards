@@ -157,7 +157,7 @@ with visualization_column:
             """
             st.write('Pre-Reduction')
             visualization_prereduction_method = st.selectbox(
-                'Reduction type',
+                'Reduction type algorithms',
                 ('UMAP', 'PCA'),
                 key="prereduction method",
                 disabled=not(visualization_prereduction_check)
